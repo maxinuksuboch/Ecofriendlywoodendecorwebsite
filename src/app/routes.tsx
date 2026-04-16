@@ -1,7 +1,7 @@
 import { createBrowserRouter } from "react-router";
 import { Root } from "./components/Root";
 import { HomePage } from "./components/HomePage";
-import { CatalogPage } from "./components/CatalogPage";
+import { CatalogPage } from "../pages/Catalog";
 import { ProductDetailPage } from "./components/ProductDetailPage";
 
 export const router = createBrowserRouter([

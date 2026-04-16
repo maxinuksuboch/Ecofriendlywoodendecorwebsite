@@ -1,823 +1,1071 @@
-import { useState, useRef } from "react";
-import { useNavigate } from "react-router";
-import { ImageWithFallback } from "./figma/ImageWithFallback";
-import { FadeUp } from "./FadeUp";
-import {
-  ChevronDown,
-  ChevronUp,
-  ArrowRight,
-  Leaf,
-  Ruler,
-  MapPin,
-  ShieldCheck,
-  Palette,
-  Heart,
-  Star,
-} from "lucide-react";
+/**
+ * HomePage.tsx — EcoFriendlyWoodenDecor
+ *
+ * Design references  : Moooi · Apple Product Pages · Stripe / Linear · Lush · Kikk Festival
+ * Color system       :
+ *   Gradient 1  bg-gradient-to-br from-[#2C3E50] to-[#4CA1AF]  (odd  sections)
+ *   Gradient 2  bg-gradient-to-br from-[#4CA1AF] to-[#2C3E50]  (even sections)
+ *   Glass cards backdrop-blur + bg-white/8 + border-white/15
+ *   CTA buttons bg-white text-[#2C3E50] + cyan glow shadow
+ *
+ * Animation physics (animation-physics skill):
+ *   GSAP ScrollTrigger  — stagger: 0.1 reveals on every section (.gsap-section / .gsap-item)
+ *                         hero bg parallax y: -50
+ *   Framer Motion       — 3D tilt (useSpring 300/30) on featured product cards
+ *                         white/light glare overlay (radial rgba 255,255,255,0.12)
+ *                         whileTap scale: 0.98 separated from tilt wrapper
+ *   Pure inline SVG     — all icons, animated arrow indicator on cards
+ */
 
-// Images
-const IMAGES = {
-  hero: "https://images.unsplash.com/photo-1764755932155-dabbee87df7e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBob21lJTIwb2ZmaWNlJTIwZGVzayUyMHNldHVwJTIwY2xlYW58ZW58MXx8fHwxNzc1NTYzODcxfDA&ixlib=rb-4.1.0&q=80&w=1080",
-  workspace: "https://images.unsplash.com/photo-1771150251872-95826aa516ef?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29kZW4lMjBkZXNrJTIwYWNjZXNzb3JpZXMlMjB3b3Jrc3BhY2UlMjBzZXR1cCUyMG1pbmltYWx8ZW58MXx8fHwxNzc1NTYzODY5fDA&ixlib=rb-4.1.0&q=80&w=1080",
-  wallDecor: "https://images.unsplash.com/photo-1606933988322-a3cb8968e5ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29kZW4lMjB3b3JsZCUyMG1hcCUyMHdhbGwlMjBkZWNvciUyMGludGVyaW9yfGVufDF8fHx8MTc3NTU2Mzg2OXww&ixlib=rb-4.1.0&q=80&w=1080",
-  gifts: "https://images.unsplash.com/photo-1759563874665-ffa9dfbd0205?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29kZW4lMjBnaWZ0JTIwYm94JTIwc2V0JTIwcHJlbWl1bSUyMHBhY2thZ2luZ3xlbnwxfHx8fDE3NzU1NjM4NzB8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  organization: "https://images.unsplash.com/photo-1764161852303-8683d296f0cc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob21lJTIwb3JnYW5pemF0aW9uJTIwd29vZGVuJTIwc2hlbHZlcyUyMG1pbmltYWx8ZW58MXx8fHwxNzc1NTYzODcwfDA&ixlib=rb-4.1.0&q=80&w=1080",
-  woodTexture: "https://images.unsplash.com/photo-1761799839491-d1c18630e8d2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxvYWslMjB3b29kJTIwdGV4dHVyZSUyMGNsb3NlJTIwdXAlMjBncmFpbnxlbnwxfHx8fDE3NzU1NjM4NzF8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  phoneStand: "https://images.unsplash.com/photo-1679110450190-f196308c303c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29kZW4lMjBwaG9uZSUyMHN0YW5kJTIwZGVzayUyMG9yZ2FuaXplcnxlbnwxfHx8fDE3NzU1NjM4NzF8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  monitorStand: "https://images.unsplash.com/photo-1764557238996-c1df265dddb6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtaW5pbWFsaXN0JTIwd29ya3NwYWNlJTIwbW9uaXRvciUyMHN0YW5kJTIwd29vZGVufGVufDF8fHx8MTc3NTU2Mzg3Mnww&ixlib=rb-4.1.0&q=80&w=1080",
-  workshop: "https://images.unsplash.com/photo-1771668343211-0f976f6f32ff?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29kZW4lMjBjcmFmdCUyMHdvcmtzaG9wJTIwcHJvZHVjdGlvbiUyMGFydGlzYW58ZW58MXx8fHwxNzc1NTYzODcyfDA&ixlib=rb-4.1.0&q=80&w=1080",
-  engraving: "https://images.unsplash.com/photo-1582269847642-87432658c952?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsYXNlciUyMGVuZ3JhdmluZyUyMHdvb2QlMjBjdXN0b20lMjBwZXJzb25hbGl6ZWR8ZW58MXx8fHwxNzc1NTYzODczfDA&ixlib=rb-4.1.0&q=80&w=1080",
-  livingRoom: "https://images.unsplash.com/photo-1653242370332-e332a8103763?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBsaXZpbmclMjByb29tJTIwd2FsbCUyMGRlY29yJTIwbWluaW1hbHxlbnwxfHx8fDE3NzU1NjM4NzN8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  deskShelf: "https://images.unsplash.com/photo-1662018113001-0feffe4dd5d3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29kZW4lMjBkZXNrJTIwc2hlbGYlMjBtb25pdG9yJTIwcmlzZXIlMjBjbGVhbnxlbnwxfHx8fDE3NzU1NjM4NzR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router";
+import {
+  motion,
+  useSpring,
+  useMotionValue,
+  useMotionTemplate,
+} from "motion/react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useGSAP } from "@gsap/react";
+import { PRODUCTS } from "../../data/products";
+import { HeroSection } from "./HeroSection";
+
+gsap.registerPlugin(ScrollTrigger, useGSAP);
+
+// ─── Images ──────────────────────────────────────────────────────────────────
+
+const IMG = {
+  hero:        "https://images.unsplash.com/photo-1764755932155-dabbee87df7e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBob21lJTIwb2ZmaWNlJTIwZGVzayUyMHNldHVwJTIwY2xlYW58ZW58MXx8fHwxNzc1NTYzODcxfDA&ixlib=rb-4.1.0&q=80&w=1080",
+  workspace:   "https://images.unsplash.com/photo-1771150251872-95826aa516ef?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29kZW4lMjBkZXNrJTIwYWNjZXNzb3JpZXMlMjB3b3Jrc3BhY2UlMjBzZXR1cCUyMG1pbmltYWx8ZW58MXx8fHwxNzc1NTYzODY5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+  wallDecor:   "https://images.unsplash.com/photo-1606933988322-a3cb8968e5ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29kZW4lMjB3b3JsZCUyMG1hcCUyMHdhbGwlMjBkZWNvciUyMGludGVyaW9yfGVufDF8fHx8MTc3NTU2Mzg2OXww&ixlib=rb-4.1.0&q=80&w=1080",
+  gifts:       "https://images.unsplash.com/photo-1759563874665-ffa9dfbd0205?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29kZW4lMjBnaWZ0JTIwYm94JTIwc2V0JTIwcHJlbWl1bSUyMHBhY2thZ2luZ3xlbnwxfHx8fDE3NzU1NjM4NzB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+  organization:"https://images.unsplash.com/photo-1764161852303-8683d296f0cc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob21lJTIwb3JnYW5pemF0aW9uJTIwd29vZGVuJTIwc2hlbHZlcyUyMG1pbmltYWx8ZW58MXx8fHwxNzc1NTYzODcwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+  workshop:    "https://images.unsplash.com/photo-1771668343211-0f976f6f32ff?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29kZW4lMjBjcmFmdCUyMHdvcmtzaG9wJTIwcHJvZHVjdGlvbiUyMGFydGlzYW58ZW58MXx8fHwxNzc1NTYzODcyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+  engraving:   "https://images.unsplash.com/photo-1582269847642-87432658c952?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsYXNlciUyMGVuZ3JhdmluZyUyMHdvb2QlMjBjdXN0b20lMjBwZXJzb25hbGl6ZWR8ZW58MXx8fHwxNzc1NTYzODczfDA&ixlib=rb-4.1.0&q=80&w=1080",
+  monitorStand:"https://images.unsplash.com/photo-1764557238996-c1df265dddb6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtaW5pbWFsaXN0JTIwd29ya3NwYWNlJTIwbW9uaXRvciUyMHN0YW5kJTIwd29vZGVufGVufDF8fHx8MTc3NTU2Mzg3Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+  livingRoom:  "https://images.unsplash.com/photo-1653242370332-e332a8103763?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBsaXZpbmclMjByb29tJTIwd2FsbCUyMGRlY29yJTIwbWluaW1hbHxlbnwxfHx8fDE3NzU1NjM4NzN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+  phoneStand:  "https://images.unsplash.com/photo-1679110450190-f196308c303c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29kZW4lMjBwaG9uZSUyMHN0YW5kJTIwZGVzayUyMG9yZ2FuaXplcnxlbnwxfHx8fDE3NzU1NjM4NzF8MA&ixlib=rb-4.1.0&q=80&w=1080",
 };
+
+// ─── Pure SVG icon atoms (zero icon-library dependencies) ────────────────────
+
+function IconLeaf() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M17 3C11 3 4 8 4 16c3-1 6-3 8-6M4 16c2-4 6-8 10-10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
+function IconRuler() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="2" y="8" width="16" height="4" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M5 8V6M8 8V7M11 8V6M14 8V7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+    </svg>
+  );
+}
+function IconPin() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M10 2a5 5 0 015 5c0 4-5 11-5 11S5 11 5 7a5 5 0 015-5z" stroke="currentColor" strokeWidth="1.5"/>
+      <circle cx="10" cy="7" r="1.5" fill="currentColor"/>
+    </svg>
+  );
+}
+function IconShield() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M10 2L3 5v5c0 4 3 7 7 8 4-1 7-4 7-8V5l-7-3z" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M7 10l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+function IconPalette() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5"/>
+      <circle cx="7"  cy="8"  r="1" fill="currentColor"/>
+      <circle cx="13" cy="8"  r="1" fill="currentColor"/>
+      <circle cx="10" cy="13" r="1" fill="currentColor"/>
+    </svg>
+  );
+}
+function IconHeart() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M10 17s-7-5-7-10a4 4 0 018 0 4 4 0 018 0c0 5-7 10-9 10z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+function IconStar({ filled = true }: { filled?: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path
+        d="M7 1l1.8 3.6L13 5.3l-3 2.9.7 4.1L7 10.4l-3.7 1.9.7-4.1-3-2.9 4.2-.7L7 1z"
+        stroke="#E4572E"
+        strokeWidth="1"
+        fill={filled ? "#E4572E" : "none"}
+      />
+    </svg>
+  );
+}
+function IconArrow() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M2 7h10M9 4l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+function IconChevronDown() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+// ─── Glassmorphism style helper ───────────────────────────────────────────────
+
+// Warm-matte overlay — Soft Ivory + Muted Sand tones replace cold white glass
+// Reduced blur (8px vs 16px) makes it feel less "tech product", more tactile craft
+const glass = {
+  background:    "rgba(251, 246, 238, 0.06)",
+  border:        "1px solid rgba(232, 216, 195, 0.18)",
+  backdropFilter:"blur(8px)",
+  WebkitBackdropFilter: "blur(8px)",
+} as React.CSSProperties;
+
+const glassStrong = {
+  background:    "rgba(251, 246, 238, 0.10)",
+  border:        "1px solid rgba(232, 216, 195, 0.28)",
+  backdropFilter:"blur(12px)",
+  WebkitBackdropFilter: "blur(12px)",
+} as React.CSSProperties;
+
+// ─── CTA Button styles ────────────────────────────────────────────────────────
+
+const ctaShadow       = "0 0 20px rgba(228,87,46,0.40)";
+const ctaShadowHover  = "0 0 34px rgba(228,87,46,0.70), 0 4px 16px rgba(0,0,0,0.30)";
+
+// ─── Featured Product TiltCard ────────────────────────────────────────────────
+//
+// Framer Motion 3D tilt (stiffness 300, damping 30) + white/light glare overlay.
+// whileTap scale: 0.98 in its own wrapper (strict separation of concerns).
+
+interface TiltCardProps {
+  product: (typeof PRODUCTS)[number];
+  onClick: () => void;
+}
+
+function TiltCard({ product, onClick }: TiltCardProps) {
+  const tiltRef = useRef<HTMLDivElement>(null);
+  const [hovered, setHovered] = useState(false);
+
+  const rotateX = useSpring(0, { stiffness: 300, damping: 30 });
+  const rotateY = useSpring(0, { stiffness: 300, damping: 30 });
+  const glareX  = useMotionValue(50);
+  const glareY  = useMotionValue(50);
+
+  // White glare — light radial highlight on dark glass surface
+  const glareBg = useMotionTemplate`radial-gradient(circle at ${glareX}% ${glareY}%, rgba(255,255,255,0.12), transparent 65%)`;
+
+  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    const el = tiltRef.current;
+    if (!el) return;
+    const { left, top, width, height } = el.getBoundingClientRect();
+    const nx = ((e.clientX - left) / width  - 0.5) * 2;
+    const ny = ((e.clientY - top)  / height - 0.5) * 2;
+    rotateY.set(nx * 10);
+    rotateX.set(-ny * 10);
+    glareX.set(((e.clientX - left) / width)  * 100);
+    glareY.set(((e.clientY - top)  / height) * 100);
+  }
+
+  // Touch tilt — reduced angle (6°) for thumb-controlled feel
+  function handleTouchMove(e: React.TouchEvent<HTMLDivElement>) {
+    const touch = e.touches[0];
+    const el = tiltRef.current;
+    if (!el) return;
+    const { left, top, width, height } = el.getBoundingClientRect();
+    const nx = ((touch.clientX - left) / width  - 0.5) * 2;
+    const ny = ((touch.clientY - top)  / height - 0.5) * 2;
+    rotateY.set(nx * 6);
+    rotateX.set(-ny * 6);
+    glareX.set(((touch.clientX - left) / width)  * 100);
+    glareY.set(((touch.clientY - top)  / height) * 100);
+  }
+
+  function handleMouseLeave() {
+    rotateX.set(0);
+    rotateY.set(0);
+    glareX.set(50);
+    glareY.set(50);
+    setHovered(false);
+  }
+
+  return (
+    // Layer 1 — physical click scale (separated from tilt)
+    <motion.div
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      className="cursor-pointer h-full"
+    >
+      {/* Layer 2 — 3D tilt + glare */}
+      <motion.div
+        ref={tiltRef}
+        style={{ ...glass, rotateX, rotateY, transformPerspective: 900 }}
+        animate={{
+          boxShadow: hovered
+            ? "0 24px 64px rgba(0,0,0,0.5), 0 0 32px rgba(228,87,46,0.25)"
+            : "0 4px 24px rgba(0,0,0,0.25)",
+        }}
+        transition={{ boxShadow: { duration: 0.4, ease: "easeOut" } }}
+        onMouseMove={handleMouseMove}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={handleMouseLeave}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleMouseLeave}
+        className="relative overflow-hidden h-full flex flex-col"
+      >
+        {/* Image zone */}
+        <div
+          className="relative overflow-hidden"
+          style={{ aspectRatio: "4 / 3", background: "rgba(255,255,255,0.04)" }}
+        >
+          <img
+            src={product.image}
+            alt={product.title}
+            className="w-full h-full object-contain"
+            style={{
+              transform: hovered ? "scale(1.06)" : "scale(1)",
+              transition: "transform 0.7s cubic-bezier(0.22, 1, 0.36, 1)",
+            }}
+          />
+          {/* Diagonal ribbon for NEW — notch style, unique vs pill badges */}
+          {product.isNew && (
+            <div className="absolute top-0 right-0 overflow-hidden" style={{ width: 64, height: 64, zIndex: 2 }}>
+              <div
+                style={{
+                  position: "absolute",
+                  top: 15,
+                  right: -17,
+                  background: "#E4572E",
+                  color: "white",
+                  fontSize: "0.45rem",
+                  letterSpacing: "0.16em",
+                  fontWeight: 700,
+                  padding: "3px 22px",
+                  transform: "rotate(45deg)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                NEW
+              </div>
+            </div>
+          )}
+          {/* BESTSELLER stays as grounded pill — bottom-left, different language */}
+          {product.isBestseller && (
+            <span className="absolute bottom-3 left-3 px-2.5 py-0.5 text-[#2B1E17] bg-[#FBF6EE]"
+              style={{ fontSize: "0.6rem", letterSpacing: "0.14em", fontWeight: 700 }}>
+              BESTSELLER
+            </span>
+          )}
+          <span
+            className="absolute bottom-3 right-3 px-2.5 py-1 text-white/60"
+            style={{ ...glass, fontSize: "0.6rem", letterSpacing: "0.1em" }}
+          >
+            {product.material.toUpperCase()}
+          </span>
+        </div>
+
+        {/* Content */}
+        <div className="p-5 flex flex-col flex-1">
+          <div className="flex-1">
+            <p className="text-[#E4572E] mb-1"
+              style={{ fontSize: "0.62rem", letterSpacing: "0.18em", fontWeight: 600 }}>
+              {product.category.toUpperCase()}
+            </p>
+            <h3 className="text-white mb-1.5 leading-snug"
+              style={{ fontFamily: "'Playfair Display', serif", fontSize: "1.05rem" }}>
+              {product.title}
+            </h3>
+            <p className="text-white/55" style={{ fontSize: "0.82rem", lineHeight: 1.55 }}>
+              {product.subtitle}
+            </p>
+          </div>
+          <div className="mt-4 pt-4 flex items-center justify-between"
+            style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+            <span className="text-white font-bold" style={{ fontSize: "1rem" }}>
+              {product.price}
+            </span>
+            {/* Pure SVG Arrow — opacity 0/x-10/y10 → slides in on hover */}
+            <motion.span
+              animate={hovered ? { opacity: 1, x: 0, y: 0 } : { opacity: 0, x: -10, y: 10 }}
+              transition={{ duration: 0.28, ease: "easeOut" }}
+              className="flex items-center gap-1.5 text-[#E4572E]"
+              style={{ fontSize: "0.75rem", fontWeight: 500 }}
+              aria-hidden
+            >
+              <span>Explore</span>
+              <IconArrow />
+            </motion.span>
+          </div>
+        </div>
+
+        {/* White glare overlay */}
+        <motion.div
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: glareBg }}
+          aria-hidden
+        />
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── FAQ Accordion Item ───────────────────────────────────────────────────────
+
+function FAQItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={glass} className="overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-6 py-5 text-left bg-transparent border-none cursor-pointer"
+      >
+        <span className="text-white pr-4" style={{ fontSize: "0.97rem", fontWeight: 500, lineHeight: 1.45 }}>
+          {q}
+        </span>
+        <motion.span
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={{ duration: 0.3 }}
+          className="text-[#E4572E] flex-shrink-0"
+        >
+          <IconChevronDown />
+        </motion.span>
+      </button>
+      <motion.div
+        initial={false}
+        animate={{ height: open ? "auto" : 0, opacity: open ? 1 : 0 }}
+        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        style={{ overflow: "hidden" }}
+      >
+        <p
+          className="px-6 pb-5 text-white/60"
+          style={{ fontSize: "0.92rem", lineHeight: 1.75 }}
+        >
+          {a}
+        </p>
+      </motion.div>
+    </div>
+  );
+}
+
+// ─── Framer Motion section reveal variant ────────────────────────────────────
+
+// Y-axis reveal — used on odd sections (upward emergence)
+const revealVariant = {
+  hidden:  { opacity: 0, y: 28 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.75, ease: [0.22, 1, 0.36, 1] as const } },
+};
+
+// X-axis reveal — used on even sections (lateral entrance) for visual variety
+const revealVariantAlt = {
+  hidden:  { opacity: 0, x: -22 },
+  visible: { opacity: 1, x: 0,  transition: { duration: 0.75, ease: [0.22, 1, 0.36, 1] as const } },
+};
+
+// ─── HomePage ─────────────────────────────────────────────────────────────────
 
 export function HomePage() {
   const navigate = useNavigate();
-  const heroRef = useRef<HTMLDivElement>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    contact: "",
-    orderType: "",
-    message: "",
-  });
-  const [formSubmitted, setFormSubmitted] = useState(false);
+  const pageRef  = useRef<HTMLDivElement>(null);
 
-  const scrollTo = (href: string) => {
-    const el = document.querySelector(href);
-    el?.scrollIntoView({ behavior: "smooth" });
+  const scrollTo = (id: string) => {
+    document.querySelector(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  // ── GSAP: all section stagger reveals ───────────────────────────────────
+  useGSAP(() => {
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Staggered section reveals — 0.06s stagger prevents last-card delay on large grids
+    const sections = document.querySelectorAll(".gsap-section");
+    sections.forEach((section, idx) => {
+      const items = section.querySelectorAll(".gsap-item");
+      if (!items.length) return;
+
+      if (prefersReduced) {
+        // Reduced motion: just show items immediately without animation
+        gsap.set(items, { opacity: 1, y: 0 });
+        return;
+      }
+
+      gsap.set(items, { opacity: 0, y: 32 });
+      gsap.to(items, {
+        opacity: 1,
+        y: 0,
+        duration: 0.65,
+        stagger: { amount: Math.min(items.length * 0.06, 0.54), ease: "expo.out" },
+        ease: "power3.out",
+        scrollTrigger: {
+          id: `home-${idx}`,
+          trigger: section,
+          start: "top 85%",
+          once: true,
+        },
+      });
+    });
+  }, { scope: pageRef, dependencies: [] });
+
+  const [formData, setFormData] = useState({ name: "", contact: "", type: "", message: "" });
+  const [submitted, setSubmitted] = useState(false);
+  const handleForm = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
-    setFormSubmitted(true);
-    setTimeout(() => {
-      setFormSubmitted(false);
-      setFormData({ name: "", contact: "", orderType: "", message: "" });
-    }, 3000);
+    setSubmitted(true);
+    setTimeout(() => { setSubmitted(false); setFormData({ name:"", contact:"", type:"", message:"" }); }, 3000);
   };
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const FEATURED = PRODUCTS.filter(p => p.isBestseller || p.isNew).slice(0, 4);
 
   return (
-    <>
-      {/* Hero */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center overflow-hidden">
-        <div className="absolute inset-0">
-          <ImageWithFallback
-            src={IMAGES.hero}
-            alt="Modern workspace with wooden accessories"
-            className="w-full h-full object-cover"
-            style={{ transform: "scale(1.05)" }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-white/85 via-white/60 to-transparent" />
-        </div>
-        <div className="relative max-w-7xl mx-auto px-5 py-32 md:py-0 w-full">
-          <div className="max-w-xl">
-            <FadeUp>
-              <p
-                className="tracking-[0.25em] uppercase text-[#2F5BFF] mb-4"
-                style={{ fontSize: "0.75rem" }}
+    <div ref={pageRef} style={{ fontFamily: "'Inter', sans-serif" }}>
+
+      {/* ════════════════════════════════════════════════════════════
+          1. HERO — HeroSection with animated walnut clock organizer
+      ════════════════════════════════════════════════════════════ */}
+      <HeroSection />
+
+      {/* ════════════════════════════════════════════════════════════
+          2. SCENARIOS — Gradient 2, glassmorphism image cards
+      ════════════════════════════════════════════════════════════ */}
+      <section className="py-24 md:py-32 bg-[#2B1E17]">
+        <div className="max-w-7xl mx-auto px-5">
+          <motion.div
+            variants={revealVariant}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <p className="tracking-[0.22em] uppercase text-white/50 mb-3"
+              style={{ fontSize: "0.67rem", fontWeight: 600 }}>
+              Выбрать по сценарию
+            </p>
+            <h2 className="text-white"
+              style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", letterSpacing: "-0.015em" }}>
+              Ваш идеальный интерьер
+            </h2>
+          </motion.div>
+
+          <div className="gsap-section grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              { title: "Рабочее место",  subtitle: "Аксессуары для концентрации",   img: IMG.workspace },
+              { title: "Декор стен",      subtitle: "Акцентные детали для дома",     img: IMG.wallDecor },
+              { title: "Подарки",         subtitle: "Подарки с душою",               img: IMG.gifts },
+              { title: "Для дома",        subtitle: "Натуральная элегантность",       img: IMG.organization },
+            ].map((item, idx) => (
+              <motion.div
+                key={item.title}
+                className="gsap-item cursor-pointer relative overflow-hidden"
+                whileHover={{ y: -6, boxShadow: "0 24px 48px rgba(0,0,0,0.45)" }}
+                style={{ aspectRatio: "3/4" }}
+                onClick={() => navigate("/catalog")}
               >
-                Natural materials · Modern design · Made in Belarus
-              </p>
-            </FadeUp>
-            <FadeUp delay={0.1}>
-              <h1
-                className="mb-6 text-[#1F2A44]"
-                style={{
-                  fontFamily: "'Playfair Display', serif",
-                  fontSize: "clamp(2rem, 5vw, 3.2rem)",
-                  lineHeight: 1.15,
-                  fontWeight: 500,
-                }}
-              >
-                Beautifully organize
-                <br />
-                your space with
-                <br />
-                <span className="text-[#2F5BFF]">natural wood</span>
-              </h1>
-            </FadeUp>
-            <FadeUp delay={0.2}>
-              <p className="text-[#7A7A7A] mb-8 max-w-md" style={{ fontSize: "1.05rem", lineHeight: 1.7 }}>
-                Designer wooden decor and workspace accessories. Oak, ash, and birch — shaped with
-                industrial precision into products that bring warmth, order, and style to your
-                everyday.
-              </p>
-            </FadeUp>
-            <FadeUp delay={0.3}>
-              <div className="flex flex-wrap gap-4">
-                <button
-                  onClick={() => navigate("/catalog")}
-                  className="px-8 py-3.5 bg-[#FF7A00] text-white cursor-pointer border-none transition-all duration-300 hover:bg-[#E66D00] hover:-translate-y-0.5"
-                  style={{ fontSize: "0.9rem", letterSpacing: "0.05em" }}
+                {/* Image with zoom on hover */}
+                <motion.img
+                  src={item.img}
+                  alt={item.title}
+                  className="w-full h-full object-cover"
+                  whileHover={{ scale: 1.08 }}
+                  transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ transformOrigin: "center center" }}
+                />
+
+                {/* Base gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#2B1E17]/85 via-[#2B1E17]/20 to-transparent" />
+
+                {/* Hover colour tint */}
+                <motion.div
+                  className="absolute inset-0"
+                  initial={{ opacity: 0 }}
+                  whileHover={{ opacity: 1 }}
+                  transition={{ duration: 0.35 }}
+                  style={{ background: "rgba(228,87,46,0.08)" }}
+                />
+
+                {/* Info strip — slides up on hover */}
+                <motion.div
+                  className="absolute bottom-0 left-0 right-0 p-5"
+                  initial={{ y: 0 }}
+                  whileHover={{ y: -6 }}
+                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ background: "linear-gradient(to top, rgba(43,30,23,0.92), transparent)" }}
                 >
-                  View Catalog
-                </button>
-                <button
-                  onClick={() => scrollTo("#custom")}
-                  className="px-8 py-3.5 bg-transparent text-[#2F5BFF] cursor-pointer border-2 border-[#2F5BFF] transition-all duration-300 hover:bg-[#2F5BFF] hover:text-white hover:-translate-y-0.5"
-                  style={{ fontSize: "0.9rem", letterSpacing: "0.05em" }}
-                >
-                  Request Custom Order
-                </button>
-              </div>
-            </FadeUp>
+                  <h3 className="text-white mb-0.5" style={{ fontSize: "1.1rem", fontWeight: 500 }}>
+                    {item.title}
+                  </h3>
+                  <p className="text-white/60 mb-3" style={{ fontSize: "0.82rem" }}>{item.subtitle}</p>
+                  {/* Arrow — fades in on hover */}
+                  <motion.span
+                    className="flex items-center gap-1.5 text-[#E4572E]"
+                    style={{ fontSize: "0.75rem", fontWeight: 500 }}
+                    initial={{ opacity: 0, x: -8 }}
+                    whileHover={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                  >
+                    В каталог
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                      <path d="M2 7h10M9 4l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </motion.span>
+                </motion.div>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Scenarios */}
-      <section className="py-24 md:py-32">
+      {/* ════════════════════════════════════════════════════════════
+          3. FEATURED PRODUCTS — Gradient 1, Framer Motion 3D tilt
+      ════════════════════════════════════════════════════════════ */}
+      <section id="catalog" className="py-24 md:py-32 bg-[#2B1E17]">
         <div className="max-w-7xl mx-auto px-5">
-          <FadeUp>
-            <div className="text-center mb-16">
-              <p className="tracking-[0.25em] uppercase text-[#2F5BFF] mb-3" style={{ fontSize: "0.75rem" }}>
-                Shop by scenario
-              </p>
-              <h2
-                style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.5rem, 3vw, 2.2rem)" }}
-              >
-                Find your perfect setup
-              </h2>
-            </div>
-          </FadeUp>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <motion.div
+            variants={revealVariant}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <p className="tracking-[0.22em] uppercase text-[#E4572E] mb-3"
+              style={{ fontSize: "0.67rem", fontWeight: 600 }}>
+              Наши коллекции
+            </p>
+            <h2 className="text-white"
+              style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", letterSpacing: "-0.015em" }}>
+              Популярные товары
+            </h2>
+            <p className="text-white/55 mt-3 max-w-md mx-auto" style={{ fontSize: "0.95rem" }}>
+              Бестселлеры и новинки — каждое изделие хранит тепло и текстуру натурального дерева.
+            </p>
+          </motion.div>
+
+          {/* 3D tilt cards — Framer Motion, no GSAP */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+            {FEATURED.map((product) => (
+              <TiltCard
+                key={product.id}
+                product={product}
+                onClick={() => product.link ? navigate(product.link) : navigate("/catalog")}
+              />
+            ))}
+          </div>
+
+          <div className="text-center">
+            <motion.button
+              onClick={() => navigate("/catalog")}
+              className="bg-[#E4572E] text-white cursor-pointer border-none px-10 py-4"
+              style={{ fontSize: "0.9rem", letterSpacing: "0.06em", fontWeight: 600, boxShadow: ctaShadow }}
+              whileHover={{ y: -2, boxShadow: ctaShadowHover }}
+              whileTap={{ y: 0, scale: 0.98 }}
+            >
+              Смотреть все товары
+            </motion.button>
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════════════
+          4. WHY CHOOSE US — Gradient 2, glass feature boxes
+      ════════════════════════════════════════════════════════════ */}
+      <section className="py-24 md:py-32 bg-[#2B1E17]">
+        <div className="max-w-7xl mx-auto px-5">
+          <motion.div
+            variants={revealVariant}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <p className="tracking-[0.22em] uppercase text-white/50 mb-3"
+              style={{ fontSize: "0.67rem", fontWeight: 600 }}>
+              Почему Woodcraft?
+            </p>
+            <h2 className="text-white"
+              style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", letterSpacing: "-0.015em" }}>
+              С вниманием к деталям
+            </h2>
+          </motion.div>
+
+          <div className="gsap-section grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {[
-              { title: "For Workspace", subtitle: "Desk accessories that inspire focus", img: IMAGES.workspace },
-              { title: "For Wall Decor", subtitle: "Statement pieces for any room", img: IMAGES.wallDecor },
-              { title: "For Gifts", subtitle: "Thoughtful presents they'll love", img: IMAGES.gifts },
-              { title: "For Home", subtitle: "Organize with natural elegance", img: IMAGES.organization },
-            ].map((item, i) => (
-              <FadeUp key={item.title} delay={i * 0.1}>
-                <div className="group cursor-pointer relative overflow-hidden aspect-[3/4]">
-                  <ImageWithFallback
+              { Icon: IconLeaf,    title: "Натуральные материалы",    desc: "Дуб, ясень, береза — тщательно отобранная древесина от ответственных поставщиков." },
+              { Icon: IconRuler,   title: "Промышленная точность", desc: "ЧПУ-обработка, лазерная резка и ручная шлифовка для безупречного результата." },
+              { Icon: IconPin,     title: "Местное производство",     desc: "Дизайн и производство в Беларуси, поддержка традиций и мастерства." },
+              { Icon: IconShield,  title: "Безопасная отделка",        desc: "Масла на водной основе и эко-покрытия. Безопасно для вашего дома и планеты." },
+              { Icon: IconPalette, title: "Чистый дизайн",         desc: "Минималистичная эстетика, которая естественно вписывается в современный интерьер." },
+              { Icon: IconHeart,   title: "Красота и польза",    desc: "Каждое изделие решает конкретную задачу, добавляя уюта вашему пространству." },
+            ].map(({ Icon, title, desc }) => (
+              <div key={title} className="gsap-item p-7" style={glass}>
+                <div
+                  className="inline-flex items-center justify-center w-11 h-11 mb-5 text-[#E4572E]"
+                  style={{ background: "rgba(228,87,46,0.12)", border: "1px solid rgba(228,87,46,0.30)" }}
+                >
+                  <Icon />
+                </div>
+                <h4 className="text-white mb-2" style={{ fontSize: "1rem", fontWeight: 500 }}>{title}</h4>
+                <p className="text-white/55" style={{ fontSize: "0.88rem", lineHeight: 1.65 }}>{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════════════
+          5. BUNDLES — Gradient 1, glass bundle cards
+      ════════════════════════════════════════════════════════════ */}
+      <section id="bundles" className="py-24 md:py-32 bg-[#2B1E17]">
+        <div className="max-w-7xl mx-auto px-5">
+          <motion.div
+            variants={revealVariant}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <p className="tracking-[0.22em] uppercase text-[#E4572E] mb-3"
+              style={{ fontSize: "0.67rem", fontWeight: 600 }}>
+              Готовые решения
+            </p>
+            <h2 className="text-white"
+              style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", letterSpacing: "-0.015em" }}>
+              Комплекты для вашего интерьера
+            </h2>
+            <p className="text-white/55 mt-3 max-w-lg mx-auto" style={{ fontSize: "0.95rem" }}>
+              Забудьте о муках выбора. Наши сеты объединяют идеально сочетающиеся изделия по выгодной цене.
+            </p>
+          </motion.div>
+
+          <div className="gsap-section grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              { title: "Рабочий кабинет",  items: "Полка для монитора + Подставка для телефона + Органайзер кабелей + Лоток", price: "$145", save: "-15%", img: IMG.monitorStand },
+              { title: "Декор гостиной",   items: "Карта мира + Подвесные полки + Настенные часы",              price: "$189", save: "-12%", img: IMG.livingRoom   },
+              { title: "Подарочный сет",         items: "Подставка для телефона + Органайзер + Гравировка + Коробка",  price: "$79",  save: "-18%", img: IMG.gifts        },
+              { title: "Эко-старт",    items: "Ключница + Подставка для телефона + Настольный коврик",                    price: "$59",  save: "-10%", img: IMG.workspace    },
+            ].map((item) => (
+              <motion.div
+                key={item.title}
+                className="gsap-item group cursor-pointer overflow-hidden flex flex-col h-full"
+                style={glass}
+                whileHover={{ y: -4 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
+                <div className="overflow-hidden" style={{ aspectRatio: "4/3" }}>
+                  <img
                     src={item.img}
                     alt={item.title}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-6">
-                    <h3 className="text-white mb-1" style={{ fontSize: "1.2rem" }}>
-                      {item.title}
-                    </h3>
-                    <p className="text-white/70" style={{ fontSize: "0.85rem" }}>
-                      {item.subtitle}
-                    </p>
+                </div>
+                <div className="p-5 flex flex-col flex-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-white" style={{ fontSize: "1rem", fontWeight: 500 }}>{item.title}</h4>
+                    <span className="px-2 py-0.5 bg-[#E4572E] text-white"
+                      style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.06em" }}>
+                      {item.save}
+                    </span>
+                  </div>
+                  <p className="text-white/50 mb-4 flex-1" style={{ fontSize: "0.82rem", lineHeight: 1.5 }}>{item.items}</p>
+                  <div className="mt-auto flex items-center justify-between">
+                    <span className="text-white font-bold" style={{ fontSize: "1.1rem" }}>{item.price}</span>
+                    <span className="flex items-center gap-1 text-[#E4572E] transition-all duration-300 group-hover:gap-2"
+                      style={{ fontSize: "0.82rem" }}>
+                      Купить сет <IconArrow />
+                    </span>
                   </div>
                 </div>
-              </FadeUp>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Featured Categories / Catalog */}
-      <section id="catalog" className="py-24 md:py-32 bg-[#FFF8F1]">
-        <div className="max-w-7xl mx-auto px-5">
-          <FadeUp>
-            <div className="text-center mb-16">
-              <p className="tracking-[0.25em] uppercase text-[#2F5BFF] mb-3" style={{ fontSize: "0.75rem" }}>
-                Our collections
-              </p>
-              <h2
-                style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.5rem, 3vw, 2.2rem)" }}
-              >
-                Featured categories
-              </h2>
-            </div>
-          </FadeUp>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[
-              {
-                title: "Wooden World Maps",
-                desc: "Multi-layered wall maps in oak, walnut, and custom finishes. A statement piece for any interior.",
-                img: IMAGES.wallDecor,
-                price: "From $120",
-                link: "/product/wooden-world-maps",
-              },
-              {
-                title: "Desk Shelf & Workspace Setup",
-                desc: "Monitor stands, desk shelves, and organizers that elevate your desk to a new level of calm productivity.",
-                img: IMAGES.deskShelf,
-                price: "From $45",
-                link: null,
-              },
-              {
-                title: "Organizers & Phone Stands",
-                desc: "Cable organizers, valet trays, phone docks — small details that make a big difference.",
-                img: IMAGES.phoneStand,
-                price: "From $25",
-                link: null,
-              },
-              {
-                title: "Gift Sets & Engraving",
-                desc: "Curated gift boxes with custom engraving. Perfect for birthdays, housewarmings, and corporate gifting.",
-                img: IMAGES.gifts,
-                price: "From $55",
-                link: null,
-              },
-            ].map((item, i) => (
-              <FadeUp key={item.title} delay={i * 0.1}>
-                <div
-                  onClick={() => item.link && navigate(item.link)}
-                  className="group cursor-pointer bg-white overflow-hidden flex flex-col sm:flex-row transition-shadow duration-300 hover:shadow-lg"
-                >
-                  <div className="sm:w-1/2 overflow-hidden">
-                    <ImageWithFallback
-                      src={item.img}
-                      alt={item.title}
-                      className="w-full h-56 sm:h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="sm:w-1/2 p-6 sm:p-8 flex flex-col justify-center">
-                    <h3 className="mb-2 text-[#2D2D2D]" style={{ fontSize: "1.15rem" }}>
-                      {item.title}
-                    </h3>
-                    <p className="text-[#7A7A7A] mb-4" style={{ fontSize: "0.9rem", lineHeight: 1.6 }}>
-                      {item.desc}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#FF7A00]" style={{ fontSize: "0.9rem", fontWeight: 600 }}>
-                        {item.price}
-                      </span>
-                      <span className="flex items-center gap-1 text-[#1F2A44] transition-all duration-300 group-hover:gap-2 group-hover:text-[#2F5BFF]" style={{ fontSize: "0.85rem" }}>
-                        {item.link ? "View Details" : "Explore"} <ArrowRight size={14} />
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </FadeUp>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Why Choose Us */}
-      <section className="py-24 md:py-32">
-        <div className="max-w-7xl mx-auto px-5">
-          <FadeUp>
-            <div className="text-center mb-16">
-              <p className="tracking-[0.25em] uppercase text-[#2F5BFF] mb-3" style={{ fontSize: "0.75rem" }}>
-                Why Woodcraft
-              </p>
-              <h2
-                style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.5rem, 3vw, 2.2rem)" }}
-              >
-                Crafted with intention
-              </h2>
-            </div>
-          </FadeUp>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12">
-            {[
-              { icon: Leaf, title: "Natural Materials", desc: "Oak, ash, birch — sustainably sourced and carefully selected for every product." },
-              { icon: Ruler, title: "Industrial Precision", desc: "CNC routing, laser cutting, and hand-finishing for flawless results every time." },
-              { icon: MapPin, title: "Local Production", desc: "Designed and manufactured in Belarus, supporting local craftsmanship." },
-              { icon: ShieldCheck, title: "Safe Finishes", desc: "Water-based oils and eco-friendly coatings. Safe for your home and the planet." },
-              { icon: Palette, title: "Clean Design Language", desc: "Minimalist aesthetics that fit naturally into any modern interior." },
-              { icon: Heart, title: "Aesthetics Meets Function", desc: "Every product solves a real problem while adding beauty to your space." },
-            ].map((item, i) => (
-              <FadeUp key={item.title} delay={i * 0.08}>
-                <div className="text-center md:text-left">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#EEF4FF] mb-4">
-                    <item.icon size={20} className="text-[#2F5BFF]" />
-                  </div>
-                  <h4 className="mb-2 text-[#1F2A44]" style={{ fontSize: "1.05rem" }}>{item.title}</h4>
-                  <p className="text-[#7A7A7A]" style={{ fontSize: "0.9rem", lineHeight: 1.65 }}>
-                    {item.desc}
-                  </p>
-                </div>
-              </FadeUp>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Bundles */}
-      <section id="bundles" className="py-24 md:py-32 bg-[#2F5BFF]">
-        <div className="max-w-7xl mx-auto px-5">
-          <FadeUp>
-            <div className="text-center mb-16">
-              <p className="tracking-[0.25em] uppercase text-[#2F5BFF] mb-3" style={{ fontSize: "0.75rem" }}>
-                Complete solutions
-              </p>
-              <h2
-                className="text-white"
-                style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.5rem, 3vw, 2.2rem)" }}
-              >
-                Curated sets for every need
-              </h2>
-              <p className="text-white/60 mt-3 max-w-lg mx-auto" style={{ fontSize: "0.95rem" }}>
-                Skip the guesswork. Our curated bundles bring together perfectly matched pieces at a better price.
-              </p>
-            </div>
-          </FadeUp>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {[
-              {
-                title: "Home Office Set",
-                items: "Desk shelf + Phone stand + Cable organizer + Valet tray",
-                price: "$145",
-                save: "Save 15%",
-                img: IMAGES.monitorStand,
-              },
-              {
-                title: "Wall Decor Set",
-                items: "World map + Floating shelves + Wall clock",
-                price: "$189",
-                save: "Save 12%",
-                img: IMAGES.livingRoom,
-              },
-              {
-                title: "Gift Set",
-                items: "Phone stand + Organizer + Custom engraving + Gift box",
-                price: "$79",
-                save: "Save 18%",
-                img: IMAGES.gifts,
-              },
-              {
-                title: "Entry Eco Set",
-                items: "Key holder + Phone stand + Desk pad",
-                price: "$59",
-                save: "Save 10%",
-                img: IMAGES.workspace,
-              },
-            ].map((item, i) => (
-              <FadeUp key={item.title} delay={i * 0.1}>
-                <div className="group cursor-pointer bg-white overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-                  <div className="overflow-hidden aspect-[4/3]">
-                    <ImageWithFallback
-                      src={item.img}
-                      alt={item.title}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="p-5">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-[#1F2A44]" style={{ fontSize: "1.05rem" }}>{item.title}</h4>
-                      <span
-                        className="px-2 py-0.5 bg-[#FF5A4F] text-white"
-                        style={{ fontSize: "0.7rem" }}
-                      >
-                        {item.save}
-                      </span>
-                    </div>
-                    <p className="text-[#5A6B8C] mb-4" style={{ fontSize: "0.82rem", lineHeight: 1.5 }}>
-                      {item.items}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#FF7A00]" style={{ fontSize: "1.1rem", fontWeight: 600 }}>{item.price}</span>
-                      <span className="text-[#1F2A44] flex items-center gap-1 transition-all duration-300 group-hover:gap-2 group-hover:text-[#FF7A00]" style={{ fontSize: "0.82rem" }}>
-                        Shop set <ArrowRight size={13} />
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </FadeUp>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* About */}
-      <section id="about" className="py-24 md:py-32">
+      {/* ════════════════════════════════════════════════════════════
+          6. ABOUT — Gradient 2, editorial layout
+      ════════════════════════════════════════════════════════════ */}
+      <section id="about" className="py-24 md:py-32 bg-[#2B1E17]">
         <div className="max-w-7xl mx-auto px-5">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-            <FadeUp>
-              <div className="overflow-hidden">
-                <ImageWithFallback
-                  src={IMAGES.workshop}
-                  alt="Woodcraft workshop"
-                  className="w-full h-[400px] lg:h-[500px] object-cover"
-                />
-              </div>
-            </FadeUp>
-            <FadeUp delay={0.15}>
-              <div>
-                <p className="tracking-[0.25em] uppercase text-[#2F5BFF] mb-3" style={{ fontSize: "0.75rem" }}>
-                  Our story
-                </p>
-                <h2
-                  className="mb-6"
-                  style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.5rem, 3vw, 2.2rem)" }}
-                >
-                  Design rooted
-                  <br />
-                  in nature
-                </h2>
-                <div className="space-y-4 text-[#7A7A7A]" style={{ fontSize: "0.95rem", lineHeight: 1.75 }}>
-                  <p>
-                    Woodcraft was born from a simple belief: everyday objects should feel as good as
-                    they look. We started in a small workshop in Belarus, combining our love for
-                    natural materials with modern design thinking.
-                  </p>
-                  <p>
-                    Every piece we make — from world maps to desk organizers — goes through a
-                    thoughtful process of design, prototyping, and precision manufacturing. We use
-                    oak, ash, and birch plywood sourced locally, finished with safe water-based oils.
-                  </p>
-                  <p>
-                    Our goal is to help you create spaces that feel calm, organized, and genuinely
-                    yours. Not just furniture accessories, but quiet companions for your daily life.
-                  </p>
-                </div>
-                <div className="flex gap-12 mt-8">
-                  {[
-                    { num: "5+", label: "Years" },
-                    { num: "12k+", label: "Products sold" },
-                    { num: "4.9", label: "Rating" },
-                  ].map((stat) => (
-                    <div key={stat.label}>
-                      <div className="text-[#2F5BFF]" style={{ fontFamily: "'Playfair Display', serif", fontSize: "1.6rem", fontWeight: 600 }}>
-                        {stat.num}
-                      </div>
-                      <div className="text-[#7A7A7A]" style={{ fontSize: "0.8rem" }}>
-                        {stat.label}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </FadeUp>
-          </div>
-        </div>
-      </section>
-
-      {/* Customization / Corporate Gifts */}
-      <section id="custom" className="py-24 md:py-32 bg-[#FFE9D6]">
-        <div className="max-w-7xl mx-auto px-5">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-            <FadeUp>
-              <div>
-                <p className="tracking-[0.25em] uppercase text-[#2F5BFF] mb-3" style={{ fontSize: "0.75rem" }}>
-                  Custom & Corporate
-                </p>
-                <h2
-                  className="mb-6"
-                  style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.5rem, 3vw, 2.2rem)" }}
-                >
-                  Make it personal.
-                  <br />
-                  Make it memorable.
-                </h2>
-                <div className="space-y-4 text-[#7A7A7A] mb-8" style={{ fontSize: "0.95rem", lineHeight: 1.75 }}>
-                  <p>
-                    Add custom laser engraving to any product — names, logos, dates, or personal
-                    messages. Perfect for corporate gifts, event swag, or one-of-a-kind presents.
-                  </p>
-                  <p>
-                    We work with companies of all sizes on branded gift sets, employee welcome kits,
-                    and special-occasion packaging. Minimum order: just 10 pieces.
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-4 mb-8">
-                  {["Custom Engraving", "Branded Gift Sets", "Corporate Orders", "Event Gifts"].map(
-                    (item) => (
-                      <div key={item} className="flex items-center gap-2 text-[#1F2A44]" style={{ fontSize: "0.9rem" }}>
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#2F5BFF]" />
-                        {item}
-                      </div>
-                    )
-                  )}
-                </div>
-                <button
-                  className="px-8 py-3.5 bg-[#FF7A00] text-white cursor-pointer border-none transition-all duration-300 hover:bg-[#E66D00] hover:-translate-y-0.5"
-                  style={{ fontSize: "0.9rem", letterSpacing: "0.05em" }}
-                >
-                  Get a Quote
-                </button>
-              </div>
-            </FadeUp>
-            <FadeUp delay={0.15}>
-              <div className="overflow-hidden">
-                <ImageWithFallback
-                  src={IMAGES.engraving}
-                  alt="Custom laser engraving on wood"
-                  className="w-full h-[400px] lg:h-[500px] object-cover"
-                />
-              </div>
-            </FadeUp>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="py-24 md:py-32">
-        <div className="max-w-7xl mx-auto px-5">
-          <FadeUp>
-            <div className="text-center mb-16">
-              <p className="tracking-[0.25em] uppercase text-[#2F5BFF] mb-3" style={{ fontSize: "0.75rem" }}>
-                What people say
-              </p>
-              <h2
-                style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.5rem, 3vw, 2.2rem)" }}
-              >
-                Trusted by thousands
-              </h2>
-            </div>
-          </FadeUp>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                name: "Anna K.",
-                role: "Interior Designer",
-                text: "The world map exceeded all expectations. The detail in the layers, the quality of the oak — it's become the centerpiece of our living room. Clients keep asking where I got it.",
-                stars: 5,
-              },
-              {
-                name: "Dmitry V.",
-                role: "Software Engineer",
-                text: "I ordered the full workspace set — desk shelf, phone stand, and cable organizer. My desk has never looked this clean. The wood grain is gorgeous and the build quality is impeccable.",
-                stars: 5,
-              },
-              {
-                name: "Marina S.",
-                role: "Marketing Manager",
-                text: "We ordered 50 branded gift sets for our team. The engraving quality was perfect, delivery was on time, and the packaging looked premium. Already planning the next order.",
-                stars: 5,
-              },
-            ].map((t, i) => (
-              <FadeUp key={t.name} delay={i * 0.1}>
-                <div className="bg-white p-8 border border-[rgba(0,0,0,0.06)]">
-                  <div className="flex gap-1 mb-4">
-                    {Array.from({ length: t.stars }).map((_, j) => (
-                      <Star key={j} size={14} className="fill-[#FF7A00] text-[#FF7A00]" />
-                    ))}
-                  </div>
-                  <p className="text-[#1F2A44] mb-6" style={{ fontSize: "0.93rem", lineHeight: 1.7 }}>
-                    "{t.text}"
-                  </p>
-                  <div>
-                    <div className="text-[#1F2A44]" style={{ fontSize: "0.9rem", fontWeight: 500 }}>{t.name}</div>
-                    <div className="text-[#7A7A7A]" style={{ fontSize: "0.8rem" }}>{t.role}</div>
-                  </div>
-                </div>
-              </FadeUp>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section id="faq" className="py-24 md:py-32 bg-[#EEF4FF]">
-        <div className="max-w-3xl mx-auto px-5">
-          <FadeUp>
-            <div className="text-center mb-16">
-              <p className="tracking-[0.25em] uppercase text-[#2F5BFF] mb-3" style={{ fontSize: "0.75rem" }}>
-                FAQ
-              </p>
-              <h2
-                style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.5rem, 3vw, 2.2rem)" }}
-              >
-                Common questions
-              </h2>
-            </div>
-          </FadeUp>
-          <div className="space-y-3">
-            {[
-              {
-                q: "What materials do you use?",
-                a: "We work primarily with oak, ash, birch plywood, and natural veneers. All wood is sourced locally in Belarus and finished with eco-friendly water-based oils and coatings.",
-              },
-              {
-                q: "How long does production take?",
-                a: "Standard products ship within 3–5 business days. Custom orders and engraved items take 7–10 business days. Corporate orders of 50+ pieces may require additional time.",
-              },
-              {
-                q: "Do you ship internationally?",
-                a: "Yes, we ship across Europe and to select countries worldwide. Shipping costs are calculated at checkout based on your location and order weight.",
-              },
-              {
-                q: "Can I customize a product?",
-                a: "Absolutely. We offer laser engraving on most products — names, logos, dates, or custom messages. For fully custom designs, reach out through our custom order form.",
-              },
-              {
-                q: "How do I care for wooden products?",
-                a: "Keep them dry and away from direct sunlight. Wipe with a soft dry cloth. For deeper cleaning, use a slightly damp cloth and let it air-dry. Re-oil once a year for best results.",
-              },
-              {
-                q: "Do you offer bulk or corporate pricing?",
-                a: "Yes. We offer tiered pricing for orders of 10+ pieces, with additional discounts for 50+ and 100+ quantities. Contact us for a custom quote.",
-              },
-            ].map((item, i) => (
-              <FadeUp key={i} delay={i * 0.05}>
-                <FAQItem question={item.q} answer={item.a} />
-              </FadeUp>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Order Form */}
-      <section id="order-form" className="py-24 md:py-32 bg-white">
-        <div className="max-w-4xl mx-auto px-5">
-          <FadeUp>
-            <div className="text-center mb-12">
-              <p className="tracking-[0.25em] uppercase text-[#2F5BFF] mb-3" style={{ fontSize: "0.75rem" }}>
-                Свяжитесь с нами
-              </p>
-              <h2
-                style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.5rem, 3vw, 2.2rem)" }}
-              >
-                Оформить заявку
-              </h2>
-              <p className="text-[#7A7A7A] mt-4 max-w-2xl mx-auto" style={{ fontSize: "0.95rem", lineHeight: 1.7 }}>
-                Заполните форму ниже, и мы свяжемся с вами в течение 24 часов для обсуждения деталей вашего заказа.
-              </p>
-            </div>
-          </FadeUp>
-
-          <FadeUp delay={0.2}>
-            <form onSubmit={handleFormSubmit} className="bg-[#FFF8F1] p-8 md:p-12">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                  <label
-                    htmlFor="name"
-                    className="block text-[#1F2A44] mb-2"
-                    style={{ fontSize: "0.9rem", letterSpacing: "0.03em" }}
-                  >
-                    Ваше имя *
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 bg-white border border-[rgba(47,91,255,0.2)] focus:border-[#2F5BFF] focus:outline-none transition-colors"
-                    style={{ fontSize: "0.95rem" }}
-                    placeholder="Иван Иванов"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="contact"
-                    className="block text-[#1F2A44] mb-2"
-                    style={{ fontSize: "0.9rem", letterSpacing: "0.03em" }}
-                  >
-                    Email или телефон *
-                  </label>
-                  <input
-                    type="text"
-                    id="contact"
-                    name="contact"
-                    value={formData.contact}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 bg-white border border-[rgba(47,91,255,0.2)] focus:border-[#2F5BFF] focus:outline-none transition-colors"
-                    style={{ fontSize: "0.95rem" }}
-                    placeholder="example@mail.com или +375 29 123 45 67"
-                  />
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <label
-                  htmlFor="orderType"
-                  className="block text-[#2D2D2D] mb-2"
-                  style={{ fontSize: "0.9rem", letterSpacing: "0.03em" }}
-                >
-                  Тип заказа *
-                </label>
-                <select
-                  id="orderType"
-                  name="orderType"
-                  value={formData.orderType}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-3 bg-white border border-[rgba(0,0,0,0.1)] focus:border-[#C4A97D] focus:outline-none transition-colors"
-                  style={{ fontSize: "0.95rem" }}
-                >
-                  <option value="">Выберите тип заказа</option>
-                  <option value="workspace">Аксессуары для рабочего стола</option>
-                  <option value="wall-decor">Настенный декор</option>
-                  <option value="gift">Подарочный набор</option>
-                  <option value="corporate">Корпоративный заказ</option>
-                  <option value="custom">Индивидуальный проект</option>
-                  <option value="other">Другое</option>
-                </select>
-              </div>
-
-              <div className="mb-8">
-                <label
-                  htmlFor="message"
-                  className="block text-[#2D2D2D] mb-2"
-                  style={{ fontSize: "0.9rem", letterSpacing: "0.03em" }}
-                >
-                  Сообщение
-                </label>
-                <textarea
-                  id="message"
-                  name="message"
-                  value={formData.message}
-                  onChange={handleInputChange}
-                  rows={5}
-                  className="w-full px-4 py-3 bg-white border border-[rgba(0,0,0,0.1)] focus:border-[#C4A97D] focus:outline-none transition-colors resize-none"
-                  style={{ fontSize: "0.95rem", lineHeight: 1.6 }}
-                  placeholder="Расскажите подробнее о вашем заказе: количество, материалы, сроки, гравировка и другие детали..."
-                />
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                <button
-                  type="submit"
-                  disabled={formSubmitted}
-                  className="w-full sm:w-auto px-10 py-3.5 bg-[#FF7A00] text-white cursor-pointer border-none transition-all duration-300 hover:bg-[#E66D00] disabled:bg-[#5A6B8C] disabled:cursor-not-allowed"
-                  style={{ fontSize: "0.95rem", letterSpacing: "0.05em" }}
-                >
-                  {formSubmitted ? "Отправлено ✓" : "Отправить заявку"}
-                </button>
-                {formSubmitted && (
-                  <p className="text-[#2F5BFF]" style={{ fontSize: "0.9rem", fontWeight: 500 }}>
-                    Спасибо! Мы свяжемся с вами в ближайшее время.
-                  </p>
-                )}
-              </div>
-
-              <p className="text-[#7A7A7A] mt-6" style={{ fontSize: "0.85rem", lineHeight: 1.6 }}>
-                Отправляя форму, вы соглашаетесь с обработкой персональных данных. Мы не передаем
-                вашу информацию третьим лицам.
-              </p>
-            </form>
-          </FadeUp>
-        </div>
-      </section>
-
-      {/* CTA Banner */}
-      <section className="py-24 md:py-32 relative overflow-hidden">
-        <div className="absolute inset-0">
-          <ImageWithFallback
-            src={IMAGES.woodTexture}
-            alt="Wood texture"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-[#1F2A44]/90" />
-        </div>
-        <div className="relative text-center max-w-2xl mx-auto px-5">
-          <FadeUp>
-            <h2
-              className="text-white mb-4"
-              style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.5rem, 3vw, 2.2rem)" }}
+            <motion.div
+              variants={revealVariant}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
+              className="overflow-hidden"
+              style={{ boxShadow: "0 8px 48px rgba(0,0,0,0.35)" }}
             >
-              Ready to transform your space?
+              <img
+                src={IMG.workshop}
+                alt="Мастерская Woodcraft"
+                className="w-full h-[400px] lg:h-[500px] object-cover"
+              />
+            </motion.div>
+            <motion.div
+              variants={revealVariant}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ delay: 0.18, duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <p className="tracking-[0.25em] uppercase text-[#E4572E] mb-3"
+                style={{ fontSize: "0.67rem", fontWeight: 600 }}>
+                Наша история
+              </p>
+              <h2 className="text-white mb-6"
+                style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", lineHeight: 1.2 }}>
+                Дизайн, вдохновленный<br />природой
+              </h2>
+              <div className="space-y-4 text-white/60 mb-8" style={{ fontSize: "0.96rem", lineHeight: 1.8 }}>
+                <p>Woodcraft родилась из простого убеждения: повседневные предметы должны ощущаться так же хорошо, как они выглядят. Мы начинали в небольшой мастерской в Беларуси, объединяя любовь к натуральным материалам с современным дизайном.</p>
+                <p>Каждое изделие — от карт мира до настольных органайзеров — проходит путь от вдумчивого эскиза до точного производства. Мы используем дуб, ясень и березовую фанеру местного происхождения, покрытые безопасными маслами на водной основе.</p>
+              </div>
+              <div className="flex gap-10 mb-8">
+                {[{ num: "5+", label: "Лет работы" }, { num: "12k+", label: "Заказов" }, { num: "4.9★", label: "Рейтинг" }].map((s) => (
+                  <div key={s.label}>
+                    <div className="text-white" style={{ fontFamily: "'Playfair Display', serif", fontSize: "1.7rem", fontWeight: 600 }}>
+                      {s.num}
+                    </div>
+                    <div className="text-white/45" style={{ fontSize: "0.8rem" }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+              <motion.button
+                onClick={() => scrollTo("#order-form")}
+                className="bg-[#E4572E] text-white cursor-pointer border-none px-8 py-4"
+                style={{ fontSize: "0.88rem", letterSpacing: "0.06em", fontWeight: 600, boxShadow: ctaShadow }}
+                whileHover={{ y: -2, boxShadow: ctaShadowHover }}
+                whileTap={{ y: 0, scale: 0.98 }}
+              >
+                Связаться с нами
+              </motion.button>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════════════
+          7. CUSTOM & CORPORATE — Gradient 1
+      ════════════════════════════════════════════════════════════ */}
+      <section id="custom" className="py-24 md:py-32 bg-[#2B1E17]">
+        <div className="max-w-7xl mx-auto px-5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+            <motion.div
+              variants={revealVariant}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
+            >
+              <p className="tracking-[0.25em] uppercase text-[#E4572E] mb-3"
+                style={{ fontSize: "0.67rem", fontWeight: 600 }}>
+                Для бизнеса и спецзаказов
+              </p>
+              <h2 className="text-white mb-6"
+                style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", lineHeight: 1.2 }}>
+                Сделайте подарок<br />по-настоящему личным
+              </h2>
+              <p className="text-white/60 mb-6" style={{ fontSize: "0.96rem", lineHeight: 1.8 }}>
+                Добавьте лазерную гравировку на любое изделие — имена, логотипы, важные даты или послания.
+                Идеально для корпоративных подарков, мероприятий или уникальных личных сюрпризов.
+              </p>
+              <div className="grid grid-cols-2 gap-3 mb-8">
+                {["Брендированные сеты", "Оптовые заказы", "Подарки на ивенты"].map((feat) => (
+                  <div key={feat} className="flex items-center gap-2.5 text-white/70"
+                    style={{ fontSize: "0.9rem" }}>
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#E4572E]" />
+                    {feat}
+                  </div>
+                ))}
+              </div>
+              <motion.button
+                onClick={() => scrollTo("#order-form")}
+                className="bg-[#E4572E] text-white cursor-pointer border-none px-8 py-4"
+                style={{ fontSize: "0.88rem", letterSpacing: "0.06em", fontWeight: 600, boxShadow: ctaShadow }}
+                whileHover={{ y: -2, boxShadow: ctaShadowHover }}
+                whileTap={{ y: 0, scale: 0.98 }}
+              >
+                Обсудить проект
+              </motion.button>
+            </motion.div>
+            <motion.div
+              variants={revealVariant}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ delay: 0.18 }}
+              className="overflow-hidden"
+              style={{ boxShadow: "0 8px 48px rgba(0,0,0,0.35)" }}
+            >
+              <img
+                src={IMG.engraving}
+                alt="Индивидуальная лазерная гравировка"
+                className="w-full h-[400px] lg:h-[500px] object-cover"
+              />
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════════════
+          8. TESTIMONIALS — Gradient 2, glass quote cards
+      ════════════════════════════════════════════════════════════ */}
+      <section className="py-24 md:py-32 bg-[#2B1E17]">
+        <div className="max-w-7xl mx-auto px-5">
+          <motion.div
+            variants={revealVariant}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <p className="tracking-[0.22em] uppercase text-white/50 mb-3"
+              style={{ fontSize: "0.67rem", fontWeight: 600 }}>
+              Отзывы клиентов
+            </p>
+            <h2 className="text-white"
+              style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", letterSpacing: "-0.015em" }}>
+              Нам доверяют тысячи
             </h2>
-            <p className="text-white/60 mb-8" style={{ fontSize: "0.95rem", lineHeight: 1.7 }}>
-              Browse our full catalog or tell us about your custom project. We'll help you find the
-              perfect wooden solution.
+          </motion.div>
+
+          <div className="gsap-section grid grid-cols-1 md:grid-cols-3 gap-5">
+            {[
+              { name: "Анна К.",     role: "Дизайнер интерьеров",  stars: 5, text: "Карта мира превзошла все ожидания. Детализация слоев, качество дуба — она стала центром нашей гостиной." },
+              { name: "Дмитрий В.",   role: "Разработчик",  stars: 5, text: "Заказал полный сет для рабочего стола. Мое место никогда не выглядело таким чистым. Текстура дерева потрясающая." },
+              { name: "Марина С.",   role: "Маркетинг-менеджер",  stars: 5, text: "Заказали 50 брендированных наборов для команды. Гравировка идеальная, доставка вовремя, упаковка выглядит очень премиально." },
+            ].map((t) => (
+              <div key={t.name} className="gsap-item p-8" style={glassStrong}>
+                <div className="flex gap-1 mb-4">
+                  {Array.from({ length: t.stars }).map((_, j) => <IconStar key={j} />)}
+                </div>
+                <p className="text-white/80 mb-6" style={{ fontSize: "0.93rem", lineHeight: 1.75 }}>
+                  "{t.text}"
+                </p>
+                <div>
+                  <div className="text-white" style={{ fontSize: "0.9rem", fontWeight: 500 }}>{t.name}</div>
+                  <div className="text-white/45" style={{ fontSize: "0.8rem" }}>{t.role}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════════════
+          9. FAQ — Gradient 1, glass accordion
+      ════════════════════════════════════════════════════════════ */}
+      <section id="faq" className="py-24 md:py-32 bg-[#2B1E17]">
+        <div className="max-w-3xl mx-auto px-5">
+          <motion.div
+            variants={revealVariant}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <p className="tracking-[0.22em] uppercase text-[#E4572E] mb-3"
+              style={{ fontSize: "0.67rem", fontWeight: 600 }}>
+              Вопросы и ответы
+            </p>
+            <h2 className="text-white"
+              style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", letterSpacing: "-0.015em" }}>
+              Частые вопросы
+            </h2>
+          </motion.div>
+          <div className="space-y-2">
+            {[
+              { q: "Какие материалы вы используете?",           a: "В основном мы работаем с дубом, ясенем, березовой фанерой и натуральным шпоном. Вся древесина поставляется из Беларуси и покрывается экологичными маслами." },
+              { q: "Сколько занимает производство?",       a: "Стандартные товары отправляются в течение 3–5 рабочих дней. Индивидуальные заказы и гравировка — 7–10 рабочих дней." },
+              { q: "Есть ли международная доставка?",         a: "Да, мы отправляем заказы по всей Европе и в некоторые другие страны. Стоимость рассчитывается при оформлении заказа." },
+              { q: "Можно ли кастомизировать изделие?",           a: "Конечно. Мы предлагаем лазерную гравировку имен, логотипов и дат на большинстве товаров." },
+              { q: "Как ухаживать за деревом?",   a: "Держите изделия сухими и вдали от прямых солнечных лучей. Протирайте мягкой сухой тканью." },
+              { q: "Есть ли оптовые цены?", a: "Да. Мы предлагаем специальные условия для заказов от 10 единиц." },
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.06, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <FAQItem q={item.q} a={item.a} />
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════════════
+          10. ORDER FORM — Gradient 2
+      ════════════════════════════════════════════════════════════ */}
+      <section id="order-form" className="py-24 md:py-32 bg-[#2B1E17]">
+        <div className="max-w-2xl mx-auto px-5">
+          <motion.div
+            variants={revealVariant}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <p className="tracking-[0.22em] uppercase text-white/50 mb-3"
+              style={{ fontSize: "0.67rem", fontWeight: 600 }}>
+              Связаться с нами
+            </p>
+            <h2 className="text-white"
+              style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", letterSpacing: "-0.015em" }}>
+              Оформить заказ
+            </h2>
+          </motion.div>
+
+          <motion.form
+            variants={revealVariant}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            onSubmit={handleForm}
+            className="space-y-4 p-8"
+            style={glassStrong}
+          >
+            {[
+              { name: "name",    label: "Ваше имя",      type: "text",  placeholder: "Иван Иванов" },
+              { name: "contact", label: "Email или телефон", type: "text",  placeholder: "ivan@email.com" },
+            ].map(({ name, label, type, placeholder }) => (
+              <div key={name}>
+                <label className="block text-white/60 mb-1.5" style={{ fontSize: "0.8rem", letterSpacing: "0.05em" }}>
+                  {label}
+                </label>
+                <input
+                  type={type}
+                  name={name}
+                  value={(formData as Record<string,string>)[name]}
+                  onChange={(e) => setFormData({ ...formData, [name]: e.target.value })}
+                  placeholder={placeholder}
+                  required
+                  className="w-full px-4 py-3 bg-transparent text-white placeholder-white/25 focus:outline-none"
+                  style={{
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    fontSize: "0.92rem",
+                  }}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = "#E4572E")}
+                  onBlur={(e)  => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)")}
+                />
+              </div>
+            ))}
+            <div>
+              <label className="block text-white/60 mb-1.5" style={{ fontSize: "0.8rem", letterSpacing: "0.05em" }}>
+                Тип заказа
+              </label>
+              <select
+                name="type"
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                className="w-full px-4 py-3 focus:outline-none cursor-pointer text-white"
+                style={{
+                  background: "rgba(43,30,23,0.7)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  fontSize: "0.92rem",
+                }}
+              >
+                <option value="" className="bg-[#2B1E17]">Выберите тип…</option>
+                {[
+                  { label: "Стандартный заказ", val: "Standard" },
+                  { label: "Спецзаказ / гравировка", val: "Custom" },
+                  { label: "Корпоративный заказ", val: "Corporate" },
+                  { label: "Подарочный набор", val: "Gift Set" }
+                ].map((o) => (
+                  <option key={o.val} value={o.val} className="bg-[#2B1E17]">{o.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-white/60 mb-1.5" style={{ fontSize: "0.8rem", letterSpacing: "0.05em" }}>
+                Ваше сообщение
+              </label>
+              <textarea
+                name="message"
+                rows={4}
+                value={formData.message}
+                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                placeholder="Опишите ваши пожелания…"
+                className="w-full px-4 py-3 bg-transparent text-white placeholder-white/25 focus:outline-none resize-none"
+                style={{
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  fontSize: "0.92rem",
+                }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "#E4572E")}
+                onBlur={(e)  => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)")}
+              />
+            </div>
+            <motion.button
+              type="submit"
+              className="w-full py-4 bg-[#E4572E] text-white cursor-pointer border-none"
+              style={{ fontSize: "0.9rem", letterSpacing: "0.06em", fontWeight: 700, boxShadow: ctaShadow }}
+              whileHover={{ y: -1, boxShadow: ctaShadowHover }}
+              whileTap={{ y: 0, scale: 0.98 }}
+            >
+              {submitted ? "Заявка отправлена ✓" : "Оформить заявку"}
+            </motion.button>
+          </motion.form>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════════════
+          11. CTA BANNER — Gradient 1, white button
+      ════════════════════════════════════════════════════════════ */}
+      <section className="py-24 bg-gradient-to-br from-[#2B1E17] to-[#3D2318]">
+        <div className="max-w-4xl mx-auto px-5 text-center">
+          <motion.div
+            variants={revealVariant}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+          >
+            <p className="tracking-[0.22em] uppercase text-[#E4572E] mb-3"
+              style={{ fontSize: "0.67rem", fontWeight: 600 }}>
+              Готовы преобразить ваше пространство?
+            </p>
+            <h2 className="text-white mb-5"
+              style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(1.8rem, 4vw, 3rem)", lineHeight: 1.15, letterSpacing: "-0.02em" }}>
+              Каждое великое пространство<br />начинается с одной детали.
+            </h2>
+            <p className="text-white/55 mb-10 max-w-md mx-auto" style={{ fontSize: "1rem", lineHeight: 1.75 }}>
+              Изучите наш каталог или свяжитесь с нами для создания чего-то по-настоящему уникального.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <button
+              <motion.button
                 onClick={() => navigate("/catalog")}
-                className="px-8 py-3.5 bg-white text-[#2D2D2D] cursor-pointer border-none transition-all duration-300 hover:-translate-y-0.5"
-                style={{ fontSize: "0.9rem", letterSpacing: "0.05em" }}
+                className="bg-[#E4572E] text-white cursor-pointer border-none px-10 py-4"
+                style={{ fontSize: "0.9rem", letterSpacing: "0.06em", fontWeight: 700, boxShadow: ctaShadow }}
+                whileHover={{ y: -2, boxShadow: ctaShadowHover }}
+                whileTap={{ y: 0, scale: 0.98 }}
               >
-                Browse Catalog
-              </button>
-              <button
-                onClick={() => scrollTo("#custom")}
-                className="px-8 py-3.5 bg-transparent text-white cursor-pointer border border-white/40 transition-all duration-300 hover:bg-white/10 hover:-translate-y-0.5"
-                style={{ fontSize: "0.9rem", letterSpacing: "0.05em" }}
+                Перейти в каталог
+              </motion.button>
+              <motion.button
+                onClick={() => scrollTo("#order-form")}
+                className="cursor-pointer border-none px-10 py-4 text-white"
+                style={{ ...glass, fontSize: "0.9rem", letterSpacing: "0.06em", fontWeight: 500 }}
+                whileHover={{ y: -2, background: "rgba(251,246,238,0.14)" }}
+                whileTap={{ y: 0, scale: 0.98 }}
               >
-                Contact Us
-              </button>
+                Индивидуальный заказ
+              </motion.button>
             </div>
-          </FadeUp>
+          </motion.div>
         </div>
       </section>
-    </>
-  );
-}
 
-function FAQItem({ question, answer }: { question: string; answer: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="bg-white border border-[rgba(0,0,0,0.06)]">
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-6 py-5 bg-transparent border-none cursor-pointer text-left text-[#1F2A44]"
-        style={{ fontSize: "0.95rem" }}
-      >
-        {question}
-        {open ? (
-          <ChevronUp size={18} className="text-[#2F5BFF] flex-shrink-0" />
-        ) : (
-          <ChevronDown size={18} className="text-[#7A7A7A] flex-shrink-0" />
-        )}
-      </button>
-      <div
-        className="overflow-hidden transition-all duration-300"
-        style={{ maxHeight: open ? "300px" : "0" }}
-      >
-        <p className="px-6 pb-5 text-[#7A7A7A]" style={{ fontSize: "0.9rem", lineHeight: 1.65 }}>
-          {answer}
-        </p>
-      </div>
     </div>
   );
 }
